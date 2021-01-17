@@ -1,6 +1,6 @@
 {
     "name": "wind-framework/log",
-    "description": "Wind framework base core.",
+    "description": "Wind framework log component.",
     "type": "library",
     "version": "0.1.0",
     "require": {
