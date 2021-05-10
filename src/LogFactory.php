@@ -10,6 +10,13 @@ class LogFactory
 
     private $loggers = [];
 
+    /**
+     * Get Logger
+     *
+     * @param string $name
+     * @param string $group
+     * @return \Psr\Log\LoggerInterface
+     */
     public function get($name='app', $group='default')
     {
         $key = $name.':'.$group;
