@@ -46,11 +46,7 @@ class AsyncHandler extends \Monolog\Handler\AbstractProcessingHandler
             $record['level'],
             $record['message'],
             $record['context']
-        )->onResolve(static function($e, $value) {
-            if ($e) {
-                throw $e;
-            }
-        });
+        );
     }
 
     /**
@@ -64,8 +60,7 @@ class AsyncHandler extends \Monolog\Handler\AbstractProcessingHandler
      */
     public static function log($name, $group, $level, $message, $context=[])
     {
-        $factory = di()->get(LogFactory::class);
-        $log = $factory->get($name, $group);
+        $log = di()->get(LogFactory::class)->get($name, $group);
         //增加异步写标记，异步写标记在 TaskWrapHandler 中作为同步写排除判断
         $context['__WAF_ASYNC'] = true;
         $log->addRecord($level, $message, $context);
