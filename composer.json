@@ -2,9 +2,8 @@
     "name": "wind-framework/log",
     "description": "Wind framework log component.",
     "type": "library",
-    "version": "0.1.1",
     "require": {
-        "wind-framework/wind-framework": "^0.2",
+        "wind-framework/wind-framework": "~0.2",
         "monolog/monolog": "^2.1"
     },
     "license": "Apache-2.0",
@@ -17,6 +16,11 @@
     "autoload": {
         "psr-4": {
             "Wind\\Log\\": "src/"
+        }
+    },
+    "extra": {
+        "branch-alias": {
+            "dev-main": "0.1.x-dev"
         }
     }
 }
