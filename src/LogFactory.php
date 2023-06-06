@@ -6,6 +6,7 @@ use Monolog\Logger;
 use RuntimeException;
 use Wind\Log\Handler\LogWriterHandler;
 use Wind\Log\Handler\TaskWorkerHandler;
+use Wind\Utils\ArrayUtil;
 
 class LogFactory
 {
@@ -64,15 +65,6 @@ class LogFactory
             $handlers = [];
 
             foreach ($setting['handlers'] as $i => $hc) {
-                /**
-                 * 关于日志的写入模式总共有以下几种情况
-                 *
-                 * 1. 普通同步模式，无论何处调用，均是该进程直接写入。
-                 * 2. 在正常业务进程中调用的异步写入，日志异步发送至 Task Worker 中，由 Task Worker 同步写入。
-                 * 3. 异步发送到 Task Worker 中运行的任务，本身写同步日志，与 1 相同。
-                 * 4. 异步发送到 Task Worker 中运行的任务，写日志的 Handler 有 async 标记，此时要当成同步形式写入（已经在 Task Worker 中无需再发）。
-                 */
-
                 $async = $hc['async'] ?? null;
                 $args = $hc['args'] ?? [];
 
@@ -80,15 +72,17 @@ class LogFactory
                     $handler = di()->make($hc['class'], $args);
                 } elseif ($async === self::ASYNC_TASK_WORKER || $async === true) {
                     if (defined('TASK_WORKER')) {
+                        //已经是 Task Worker 进程中则直接调用该 Handler 同步写入，无需走 TaskWorkerHandler 中转
                         $handler = di()->make($hc['class'], $args);
                     } else {
-                        $handler = new TaskWorkerHandler($group, $i);
+                        $handler = $this->instanceAsyncHandler(TaskWorkerHandler::class, $group, $i, $args);
                     }
                 } elseif ($async === self::ASYNC_LOG_WRITER) {
                     if (defined('LOG_WRITER_PROCESS')) {
+                        //LogWriter 进程本身获取的原始 Handler，无需走 LogWriterHandler 中转
                         $handler = di()->make($hc['class'], $args);
                     } else {
-                        $handler = new LogWriterHandler($group, $i);
+                        $handler = $this->instanceAsyncHandler(LogWriterHandler::class, $group, $i, $args);
                     }
                 } else {
                     throw new RuntimeException("Unknown async option for log group '$group'.");
@@ -105,6 +99,20 @@ class LogFactory
 
             return $handlers;
         }
+    }
+
+    /**
+     * @return \Wind\Log\Handler\AsyncAbstractHandler
+     */
+    private function instanceAsyncHandler(string $handlerClass, string $group, int $index, array $args)
+    {
+        $parameters = ['group'=>$group, 'index'=>$index];
+
+        if ($args) {
+            $parameters = $parameters + ArrayUtil::intersectKeys($args, ['level', 'bubble']);
+        }
+
+        return di()->make($handlerClass, $parameters);
     }
 
 }
