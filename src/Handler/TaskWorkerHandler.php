@@ -5,6 +5,8 @@ namespace Wind\Log\Handler;
 use Wind\Log\LogFactory;
 use Wind\Task\Task;
 
+use function Amp\Promise\rethrow;
+
 /**
  * Wind Task Worker Handler
  */
@@ -18,11 +20,12 @@ class TaskWorkerHandler extends AsyncAbstractHandler
      */
     protected function write(array $record): void
     {
-        Task::execute([self::class, 'log'], $this->group, $this->index, $record)->onResolve(static function($e, $value) {
-            if ($e) {
-                throw $e;
-            }
-        });
+        // reset LogFactory to prevent call TaskWorkerHandler in TaskWorker
+        if (defined('TASK_WORKER')) {
+            di()->get(LogFactory::class)->reset();
+        }
+
+        rethrow(Task::execute([self::class, 'log'], $this->group, $this->index, $record));
     }
 
     /**

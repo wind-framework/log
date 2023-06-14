@@ -103,6 +103,11 @@ class LogFactory
         return $handlers;
     }
 
+    public function reset()
+    {
+        $this->groupHandlers = [];
+    }
+
     /**
      * @return \Wind\Log\Handler\AsyncAbstractHandler
      */
