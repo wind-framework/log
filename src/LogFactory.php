@@ -17,7 +17,7 @@ class LogFactory
     /** Log Writer Process async mode */
     const ASYNC_LOG_WRITER = 1;
 
-    private $handlers = [];
+    private $groupHandlers = [];
 
     /**
      * Get Logger
@@ -40,65 +40,67 @@ class LogFactory
      */
     public function getHandlers($group)
     {
-        if (isset($this->handlers[$group])) {
-            $handlers = $this->handlers[$group];
-        } else {
-            $setting = \config('log.'.$group);
-
-            if (empty($setting)) {
-                throw new \Exception("Logger group '$group' not found in config.");
-            }
-
-            //支持多 Handlers 或单 Handler 配置
-            if (!isset($setting['handlers'])) {
-                $setting['handlers'] = [];
-            }
-
-            if (isset($setting['handler'])) {
-                $setting['handlers'][] = $setting['handler'];
-            }
-
-            if (empty($setting['handlers'])) {
-                throw new \Exception("No handlers config for logger group '$group'!");
-            }
-
-            $handlers = [];
-
-            foreach ($setting['handlers'] as $i => $hc) {
-                $async = $hc['async'] ?? null;
-                $args = $hc['args'] ?? [];
-
-                if ($async === null) {
-                    $handler = di()->make($hc['class'], $args);
-                } elseif ($async === self::ASYNC_TASK_WORKER || $async === true) {
-                    if (defined('TASK_WORKER')) {
-                        //已经是 Task Worker 进程中则直接调用该 Handler 同步写入，无需走 TaskWorkerHandler 中转
-                        $handler = di()->make($hc['class'], $args);
-                    } else {
-                        $handler = $this->instanceAsyncHandler(TaskWorkerHandler::class, $group, $i, $args);
-                    }
-                } elseif ($async === self::ASYNC_LOG_WRITER) {
-                    if (defined('LOG_WRITER_PROCESS')) {
-                        //LogWriter 进程本身获取的原始 Handler，无需走 LogWriterHandler 中转
-                        $handler = di()->make($hc['class'], $args);
-                    } else {
-                        $handler = $this->instanceAsyncHandler(LogWriterHandler::class, $group, $i, $args);
-                    }
-                } else {
-                    throw new RuntimeException("Unknown async option for log group '$group'.");
-                }
-
-                $fmt = $hc['formatter'] ?? $setting['formatter'] ?? false;
-                if ($fmt) {
-                    $formatter = di()->make($fmt['class'], $fmt['args'] ?? []);
-                    $handler->setFormatter($formatter);
-                }
-
-                $handlers[$i] = $handler;
-            }
-
-            return $handlers;
+        if (isset($this->groupHandlers[$group])) {
+            return $this->groupHandlers[$group];
         }
+
+        $setting = \config('log.'.$group);
+
+        if (empty($setting)) {
+            throw new \Exception("Logger group '$group' not found in config.");
+        }
+
+        //支持多 Handlers 或单 Handler 配置
+        if (!isset($setting['handlers'])) {
+            $setting['handlers'] = [];
+        }
+
+        if (isset($setting['handler'])) {
+            $setting['handlers'][] = $setting['handler'];
+        }
+
+        if (empty($setting['handlers'])) {
+            throw new \Exception("No handlers config for logger group '$group'!");
+        }
+
+        $handlers = [];
+
+        foreach ($setting['handlers'] as $i => $hc) {
+            $async = $hc['async'] ?? false;
+            $args = $hc['args'] ?? [];
+
+            if ($async === false) {
+                $handler = di()->make($hc['class'], $args);
+            } elseif ($async === self::ASYNC_TASK_WORKER || $async === true) {
+                if (defined('TASK_WORKER')) {
+                    //已经是 Task Worker 进程中则直接调用该 Handler 同步写入，无需走 TaskWorkerHandler 中转
+                    $handler = di()->make($hc['class'], $args);
+                } else {
+                    $handler = $this->instanceAsyncHandler(TaskWorkerHandler::class, $group, $i, $args);
+                }
+            } elseif ($async === self::ASYNC_LOG_WRITER) {
+                if (defined('LOG_WRITER_PROCESS')) {
+                    //LogWriter 进程本身获取的原始 Handler，无需走 LogWriterHandler 中转
+                    $handler = di()->make($hc['class'], $args);
+                } else {
+                    $handler = $this->instanceAsyncHandler(LogWriterHandler::class, $group, $i, $args);
+                }
+            } else {
+                throw new RuntimeException("Unknown async option for log group '$group'.");
+            }
+
+            $fmt = $hc['formatter'] ?? $setting['formatter'] ?? false;
+            if ($fmt) {
+                $formatter = di()->make($fmt['class'], $fmt['args'] ?? []);
+                $handler->setFormatter($formatter);
+            }
+
+            $handlers[$i] = $handler;
+        }
+
+        $this->groupHandlers[$group] = $handlers;
+
+        return $handlers;
     }
 
     /**
