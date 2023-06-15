@@ -92,7 +92,7 @@ class LogFactory
 
             // set formatter for handler that use FormattableHandlerTrait
             $fmt = $hc['formatter'] ?? $setting['formatter'] ?? false;
-            if ($fmt && in_array(FormattableHandlerTrait::class, class_uses($handler))) {
+            if ($fmt && method_exists($handler, 'setFormatter')) {
                 $formatter = di()->make($fmt['class'], $fmt['args'] ?? []);
                 $handler->setFormatter($formatter);
             }
