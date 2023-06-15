@@ -3,6 +3,7 @@
 namespace Wind\Log;
 
 use Monolog\Logger;
+use Monolog\Handler\FormattableHandlerTrait;
 use RuntimeException;
 use Wind\Log\Handler\LogWriterHandler;
 use Wind\Log\Handler\TaskWorkerHandler;
@@ -89,8 +90,9 @@ class LogFactory
                 throw new RuntimeException("Unknown async option for log group '$group'.");
             }
 
+            // set formatter for handler that use FormattableHandlerTrait
             $fmt = $hc['formatter'] ?? $setting['formatter'] ?? false;
-            if ($fmt) {
+            if ($fmt && in_array(FormattableHandlerTrait::class, class_uses($handler))) {
                 $formatter = di()->make($fmt['class'], $fmt['args'] ?? []);
                 $handler->setFormatter($formatter);
             }
